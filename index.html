@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scriptorium</title>
+  <meta name="description" content="Schreibzimmer für Geschichten: Story-Map, Figuren, Hintergründe und Manuskript. Ohne Konto und ohne KI.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Outfit:wght@400;500;600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --walnut: #1b1612;
+      --walnut-2: #2a231c;
+      --cream: #f6f1e7;
+      --mist: #b3a89c;
+      --line: #3d342c;
+      --paper: #f8ecd8;
+      --ink: #2a1a12;
+      --accent: #a34732;
+      --wash: #1a120c;
+      --on-accent: #f6f1e7;
+      --letter-font: "Fraunces", Palatino, serif;
+      --letter-size: 19px;
+      --font: Outfit, ui-sans-serif, system-ui, sans-serif;
+      --display: Fraunces, Palatino, "Palatino Linotype", serif;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      background: var(--walnut);
+      color: var(--cream);
+      font-family: var(--font);
+      line-height: 1.5;
+    }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button, label.ghost { cursor: pointer; }
+    h1, h2, h3 { font-family: var(--display); font-weight: 500; line-height: 1.15; margin: 0; }
+    .room {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: var(--wash) center/cover no-repeat;
+    }
+    .room::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(12, 9, 7, var(--dim, 0.46));
+    }
+    header.bar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: color-mix(in srgb, var(--walnut) 90%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    .bar-row, .tabs { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1rem; }
+    .tabs { display: none; padding-top: 0; }
+    .brand { font-family: var(--display); font-style: italic; font-size: 1.5rem; line-height: 1; }
+    .sub { color: var(--mist); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .grow { flex: 1; min-width: 0; }
+    .eyebrow { letter-spacing: 0.14em; text-transform: uppercase; font-size: 0.75rem; color: var(--mist); margin: 0; }
+    .wrap { max-width: 64rem; margin: 0 auto; padding: 1.5rem 1rem 6.5rem; }
+    .paper {
+      background: var(--paper);
+      color: var(--ink);
+      border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+      border-radius: 1.15rem;
+      color-scheme: light;
+    }
+    .label { display: block; margin-bottom: 0.3rem; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 62%, transparent); }
+    .field, .plain {
+      width: 100%;
+      border-radius: 0.85rem;
+      border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      background: color-mix(in srgb, var(--ink) 5%, var(--paper));
+      color: var(--ink);
+      padding: 0.7rem 0.9rem;
+      min-height: 2.75rem;
+    }
+    textarea.field { min-height: 6rem; resize: vertical; }
+    .title-input {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font-family: var(--display);
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 1.15;
+      color: var(--cream);
+    }
+    .wax, .ghost, .chip, .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      min-height: 2.75rem;
+      border-radius: 999px;
+      line-height: 1;
+    }
+    .wax { border: 0; padding: 0 1.05rem; background: var(--accent); color: var(--on-accent); font-weight: 600; }
+    .ghost, .chip { border: 1px solid color-mix(in srgb, currentColor 28%, transparent); background: transparent; padding: 0 0.9rem; }
+    .icon { width: 2.75rem; border: 0; background: transparent; }
+    .chip[aria-pressed="true"], .tab[aria-current="page"] { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+    .grid-2 { display: grid; gap: 0.8rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .muted { color: var(--mist); }
+    .soft { color: color-mix(in srgb, var(--ink) 68%, transparent); }
+    .menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.4rem);
+      z-index: 30;
+      width: min(18rem, 80vw);
+      padding: 0.5rem;
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      background: var(--walnut-2);
+    }
+    .menu button { width: 100%; text-align: left; }
+    .dock {
+      position: fixed;
+      inset: auto 0 0 0;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border-top: 1px solid var(--line);
+      background: var(--walnut);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .dock button { min-height: 3.4rem; border: 0; background: transparent; color: var(--mist); font-size: 0.72rem; }
+    .dock button[aria-current="page"] { color: var(--cream); }
+    .impressum {
+      position: fixed;
+      right: 0.6rem;
+      bottom: calc(4.4rem + env(safe-area-inset-bottom));
+      z-index: 25;
+      color: var(--mist);
+      min-height: 2.75rem;
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+    .drawer {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+    }
+    .drawer .shade { position: absolute; inset: 0; border: 0; background: rgba(27, 22, 18, 0.72); }
+    .drawer aside {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(28rem, 100%);
+      overflow: auto;
+      background: var(--walnut);
+      border-left: 1px solid var(--line);
+      padding: 1.2rem;
+    }
+    .cols { display: flex; gap: 0.8rem; overflow-x: auto; padding-bottom: 0.4rem; }
+    .act {
+      flex: 0 0 16rem;
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      padding: 0.7rem;
+      background: color-mix(in srgb, var(--walnut) 72%, transparent);
+    }
+    .scene { margin-top: 0.6rem; }
+    .page-input {
+      width: 100%;
+      min-height: 58dvh;
+      border: 0;
+      resize: vertical;
+      background: transparent;
+      color: var(--ink);
+      font-family: var(--letter-font);
+      font-size: var(--letter-size);
+      line-height: 1.7;
+    }
+    .manuscript-title {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font-family: var(--letter-font);
+      font-size: calc(var(--letter-size) * 1.65);
+      line-height: 1.2;
+    }
+    .swatch { width: 3rem; height: 2.75rem; padding: 0.15rem; border-radius: 0.7rem; border: 1px solid var(--line); background: transparent; }
+    input[type="range"] { width: 100%; height: 2.75rem; accent-color: var(--accent); }
+    .banner { margin: 0.8rem 1rem 0; padding: 0.7rem 0.9rem; border: 1px solid var(--line); border-radius: 1rem; }
+    .portrait {
+      width: 7rem;
+      height: 7rem;
+      border-radius: 1rem;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      font-family: var(--display);
+      font-size: 2rem;
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+    .portrait img { width: 100%; height: 100%; object-fit: cover; }
+    .split { display: grid; gap: 0.8rem; }
+    .live-words { display: none; }
+    .hide { display: none !important; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (min-width: 800px) {
+      .tabs { display: flex; }
+      .dock { display: none; }
+      .impressum { bottom: 0.8rem; }
+      .live-words { display: inline; }
+      .wrap { padding-bottom: 3rem; }
+      .grid-2 { grid-template-columns: 1.4fr 0.8fr; }
+      .split { grid-template-columns: 14rem minmax(0, 1fr); }
+      .write-split { grid-template-columns: 14rem minmax(0, 1fr); }
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body, .room { background: white; }
+      .page-input { min-height: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="room" id="room"></div>
+  <div id="app"></div>
+  <script>
+    const KEY = "scriptorium-html-v1";
+    const FACES = [
+      ["fraunces", "Antiqua", '"Fraunces", Palatino, serif'],
+      ["literata", "Literata", '"Literata", Palatino, serif'],
+      ["garamond", "Garamond", '"EB Garamond", Palatino, serif'],
+      ["klar", "Klarschrift", '"Source Sans 3", Outfit, sans-serif'],
+      ["maschine", "Maschine", '"Courier Prime", "Courier New", monospace']
+    ];
+    const PRESETS = [
+      ["parchment", "Pergament", "#f7f1e4", "#2a2118", "#8f3a2c", "#cbb892", "", 8],
+      ["ink", "Tinte", "#f4efe6", "#1c1714", "#c4654f", "#100e0c", "", 18],
+      ["candle", "Kerzenlicht", "#f8ecd8", "#2a1a12", "#a34732", "#1a120c", "studio/candle.jpg", 46],
+      ["harbor", "Nachthafen", "#f3f1ea", "#172028", "#3f6d86", "#101820", "studio/harbor.jpg", 48],
+      ["forest", "Waldkammer", "#f3f1e6", "#1a2218", "#5d6b45", "#141a14", "studio/forest.jpg", 42]
+    ];
+    const ROLES = [["haupt", "Hauptfigur"], ["gegen", "Gegenfigur"], ["neben", "Nebenfigur"], ["ensemble", "Ensemble"]];
+    const STATUSES = [["idee", "Idee"], ["entwurf", "Entwurf"], ["steht", "Steht"]];
+    const KINDS = [["ort", "Ort"], ["geschichte", "Geschichte"], ["regel", "Regel"], ["gegenstand", "Gegenstand"], ["gruppe", "Gruppe"]];
+    const TABS = [["home", "Werk", "Werk"], ["map", "Story-Map", "Karte"], ["people", "Figuren", "Figuren"], ["world", "Welt", "Welt"], ["write", "Manuskript", "Text"]];
+
+    const ui = { menu: false, room: false, focus: false, chapter: null, person: null, lore: null, kind: "alle", armed: "", note: "" };
+
+    function uid() { return crypto.randomUUID(); }
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => {
+        if (ch === "&") return "\u0026amp;";
+        if (ch === "<") return "\u0026lt;";
+        if (ch === ">") return "\u0026gt;";
+        if (ch === "\"") return "\u0026quot;";
+        return "\u0026#39;";
+      });
+    }
+    function byOrder(items) { return [...items].sort((a, b) => a.order - b.order); }
+    function words(text) { const t = String(text || "").trim(); return t ? t.split(/\s+/).length : 0; }
+    function projectWords(project) { return project.chapters.reduce((sum, chapter) => sum + words(chapter.body), 0); }
+    function formatWords(count) { return count.toLocaleString("de-DE") + (count === 1 ? " Wort" : " Wörter"); }
+    function readingLabel(count) {
+      if (!count) return "Noch keine Wörter";
+      return formatWords(count) + " · " + Math.max(1, Math.round(count / 220)) + " Min.";
+    }
+    function labelOf(list, id) { return (list.find((item) => item[0] === id) || list[0])[1]; }
+    function hex(value, fallback) { return /^#[0-9a-fA-F]{6}$/.test(value || "") ? value : fallback; }
+    function safeImage(value) {
+      if (typeof value !== "string") return "";
+      if (value.startsWith("data:image/") && value.length < 1_200_000) return value;
+      if (/^studio\/[a-z]+\.jpg$/.test(value)) return value;
+      return "";
+    }
+    function inkOn(color) {
+      const raw = color.replace("#", "");
+      const luminance = (parseInt(raw.slice(0, 2), 16) * 299 + parseInt(raw.slice(2, 4), 16) * 587 + parseInt(raw.slice(4, 6), 16) * 114) / 1000;
+      return luminance > 160 ? "#241911" : "#f6f1e7";
+    }
+    function monogram(name) {
+      const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+      if (!parts.length) return "?";
+      if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    function slug(title) {
+      return String(title || "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "werk";
+    }
+
+    function blank() {
+      const actId = uid();
+      return {
+        id: uid(), title: "Unbenanntes Werk", logline: "", genre: "", demo: false, updatedAt: Date.now(),
+        acts: [{ id: actId, title: "Erster Akt", order: 0 }],
+        scenes: [], characters: [], lore: [],
+        chapters: [{ id: uid(), title: "Erstes Kapitel", body: "", sceneId: null, order: 0 }]
+      };
+    }
+
+    function sample() {
+      const ebbe = uid(), karte = uid(), flut = uid();
+      const dark = uid(), wet = uid(), bell = uid(), road = uid(), brother = uid(), tide = uid(), waterRoad = uid();
+      const mira = uid(), elias = uid(), ruth = uid();
+      return {
+        id: uid(),
+        title: "Die Laterne am Kai",
+        logline: "Als die Laterne am Kai zum ersten Mal bei Flut brennt, muss Mira entscheiden, ob sie eine nasse Karte ins Wasser zurückgibt oder die Straße darauf wirklich sucht.",
+        genre: "Leiser Küstenroman",
+        demo: true,
+        updatedAt: Date.now(),
+        acts: [
+          { id: ebbe, title: "Ebbe", order: 0 },
+          { id: karte, title: "Die Karte", order: 1 },
+          { id: flut, title: "Flut", order: 2 }
+        ],
+        scenes: [
+          { id: dark, actId: ebbe, title: "Die Laterne bleibt dunkel", summary: "Ebbe, und trotzdem kein Licht im Glas. Mira kennt die Regel ihrer Mutter.", status: "steht", order: 0 },
+          { id: wet, actId: ebbe, title: "Elias mit der nassen Karte", summary: "Er steht im Tang und bittet sie, nicht zu fragen, wem die Karte gehört.", status: "steht", order: 1 },
+          { id: bell, actId: ebbe, title: "Die dritte Glocke", summary: "Ruth erinnert an das Gesetz: nach dem dritten Schlag gehört der Kai dem Wasser.", status: "entwurf", order: 2 },
+          { id: road, actId: karte, title: "Eine Straße, die es nicht gibt", summary: "Beim Trocknen erscheint eine Linie vom Leuchtturm geradeaus ins Meer.", status: "entwurf", order: 0 },
+          { id: brother, actId: karte, title: "Der Bruder", summary: "Elias sagt, sein Bruder habe die Straße in seiner letzten Nacht gezeichnet.", status: "idee", order: 1 },
+          { id: tide, actId: flut, title: "Licht bei Flut", summary: "Die Laterne brennt von allein, obwohl das Wasser schon über die dritte Planke steht.", status: "idee", order: 0 },
+          { id: waterRoad, actId: flut, title: "Die Straße im Wasser", summary: "Mira muss wählen: Karte zurückgeben oder dem zweiten Licht folgen.", status: "idee", order: 1 }
+        ],
+        characters: [
+          { id: mira, name: "Mira Voss", epithet: "Leuchttöchterin", role: "haupt", age: "29", origin: "Der Kai", appearance: "Kurzes nasses Haar, Öl unter den Nägeln, der schwere Schlüssel immer in der linken Tasche.", voice: "Leise, aber sie wiederholt einen Satz nicht.", want: "Dass die Laterne ein Licht für Boote bleibt, nicht für Tote.", need: "Zu entscheiden, ohne auf die Regel ihrer Mutter zu warten.", fear: "Dass das zweite Licht sie beim Namen kennt.", lie: "Wer den Kai nur bedient, schuldet ihm keine Antwort.", arc: "Von der Hüterin einer Regel zur Frau, die bei Flut trotzdem hinausgeht.", notes: "Sie stellt den Korb immer links neben die Tür.", color: "#8f3a2c", portrait: "", relations: [{ id: uid(), toId: elias, label: "trocknet seine Karte, ohne es zu versprechen" }, { id: uid(), toId: ruth, label: "schuldet ihr den Kai und die dritte Glocke" }] },
+          { id: elias, name: "Elias Brenner", epithet: "Kartograph ohne Auftrag", role: "neben", age: "34", origin: "Die Kartenkammer", appearance: "Mantel zu lang für den Tang, Tinte an der Manschette.", voice: "Bittet, wo andere befehlen würden.", want: "Die Karte seines Bruders an den Ort zurückbringen, den sie zeigt.", need: "Jemanden die Straße sehen lassen, der sie nicht gezeichnet hat.", fear: "Dass Mira die Karte ins Feuer legt.", lie: "Er sucht nur einen Gefallen, keine Zeugin.", arc: "Vom Bittsteller zum Mann, der die Wahrheit vor der Flut sagt.", notes: "", color: "#a68456", portrait: "", relations: [{ id: uid(), toId: mira, label: "vertraut ihr die einzige trockene Wahrheit" }] },
+          { id: ruth, name: "Ruth Keel", epithet: "Hafenmeisterin", role: "gegen", age: "61", origin: "Das Hafenamt", appearance: "Grauer Wollkragen, Uhr in der Faust.", voice: "Spricht in Gesetzen, auch wenn sie eine Warnung meint.", want: "Dass nach der dritten Glocke niemand mehr auf dem Kai steht.", need: "Zuzugeben, dass das Gesetz ihren eigenen Bruder nicht gehalten hat.", fear: "Ein zweites Licht, das das Amt nicht genehmigt hat.", lie: "Regeln sind älter als die Menschen, die sie brechen.", arc: "Von der Türsteherin zur Frau, die Mira die Lampe trotzdem reicht.", notes: "", color: "#3e5c6b", portrait: "", relations: [{ id: uid(), toId: mira, label: "bewacht sie und die Laterne" }] }
+        ],
+        lore: [
+          { id: uid(), title: "Der Kai", kind: "ort", trait: "Schwarze Planken, dritte Reihe markiert die Grenze.", body: "Bei Ebbe liegt Tang bis an die Netze. Bei Flut verschwindet die dritte Planke zuerst." },
+          { id: uid(), title: "Die Laterne", kind: "gegenstand", trait: "Brennt sonst von allein, sobald Ebbe ist.", body: "Öllicht, schweres Glas, ein Falter darin, der nicht ins Meer gehört." },
+          { id: uid(), title: "Die dritte Glocke", kind: "regel", trait: "Nach dem dritten Schlag gehört der Kai dem Wasser.", body: "Kein Verbot aus dem Amt, eher ein Brauch, den Ruth wie ein Gesetz spricht." },
+          { id: uid(), title: "Die unsichtbare Straße", kind: "geschichte", trait: "Eine Linie vom Turm geradeaus ins Wasser.", body: "Elias' Bruder hat sie in seiner letzten Nacht gezeichnet, auf Papier, das Salz besser behält als Tinte." }
+        ],
+        chapters: [
+          { id: uid(), title: "Ebbe", sceneId: dark, order: 0, body: "Die Laterne am Kai war aus.\n\nMira bemerkte es, als das Wasser schon unter die dritte Planke gezogen war. Um diese Stunde brannte sie sonst von allein. Heute blieb das Glas dunkel.\n\n„Nicht heute“, sagte jemand hinter ihr.\n\nElias Brenner stand bis zu den Knöcheln im Tang. Die Karte in seiner Hand war so nass, dass die Küste daran wie Tinte verlief. „Trockne sie“, sagte er. „Und frag nicht, wem sie gehört.“" },
+          { id: uid(), title: "Nasse Karte", sceneId: wet, order: 1, body: "Sie breitete die Karte auf dem Ofenrost aus. Wo das Papier trocknete, kam eine Straße zum Vorschein, die Mira nicht kannte. Sie lief vom Leuchtturm geradeaus ins Wasser, und an ihrem Ende stand ein zweites Licht.\n\n„Die gibt es nicht“, sagte sie.\n\n„Mein Bruder hat sie gezeichnet“, sagte Elias. „In der Nacht, bevor die dritte Glocke für ihn zu spät kam.“" },
+          { id: uid(), title: "Dritte Glocke", sceneId: bell, order: 2, body: "Ruth Keel wartete am Anfang des Stegs, die Uhr in der Faust.\n\n„Nach dem dritten Schlag gehört der Kai dem Wasser“, sagte sie.\n\nHinter Ruth, ganz weit draußen, flackerte etwas auf der Höhe, wo auf der Karte das zweite Licht gelegen hatte. Die Laterne am Kai, dunkel den ganzen Abend, brannte." }
+        ]
+      };
+    }
+
+    function defaultState() {
+      const project = sample();
+      return {
+        projects: [project],
+        activeId: project.id,
+        view: "home",
+        worldPane: "welt",
+        atmosphere: { presetId: "candle", paper: "#f8ecd8", ink: "#2a1a12", accent: "#a34732", wash: "#1a120c", image: "studio/candle.jpg", dim: 46 },
+        lettering: { face: "fraunces", size: 19 }
+      };
+    }
+
+    let state = load();
+    function load() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+        if (!saved || !Array.isArray(saved.projects) || !saved.projects.length) return defaultState();
+        saved.projects = saved.projects.map(normalize).filter(Boolean);
+        if (!saved.projects.length) return defaultState();
+        if (!saved.projects.some((project) => project.id === saved.activeId)) saved.activeId = saved.projects[0].id;
+        saved.view = TABS.some((tab) => tab[0] === saved.view) ? saved.view : "home";
+        saved.atmosphere = sanitizeAtmosphere(saved.atmosphere);
+        saved.lettering = sanitizeLettering(saved.lettering);
+        saved.worldPane = saved.worldPane === "raum" ? "raum" : "welt";
+        return saved;
+      } catch {
+        return defaultState();
+      }
+    }
+    function save() {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(state));
+        const banner = document.getElementById("quota");
+        if (banner) banner.remove();
+      } catch {
+        if (!document.getElementById("quota")) {
+          const note = document.createElement("p");
+          note.id = "quota";
+          note.className = "banner";
+          note.textContent = "Der Browser hat keinen Speicher mehr. Entferne ein Bild oder lade eine Sicherung herunter.";
+          document.getElementById("app").prepend(note);
+        }
+      }
+    }
+    function active() {
+      return state.projects.find((project) => project.id === state.activeId) || state.projects[0];
+    }
+    function touch() { active().updatedAt = Date.now(); save(); }
+    function normalize(raw) {
+      if (!raw || typeof raw !== "object") return null;
+      const project = {
+        id: typeof raw.id === "string" ? raw.id : uid(),
+        title: String(raw.title || "Importiertes Werk"),
+        logline: String(raw.logline || ""),
+        genre: String(raw.genre || ""),
+        demo: false,
+        updatedAt: Date.now(),
+        acts: [], scenes: [], characters: [], lore: [], chapters: []
+      };
+      const acts = Array.isArray(raw.acts) ? raw.acts : [];
+      project.acts = acts.filter((act) => act && act.id).map((act, order) => ({ id: String(act.id), title: String(act.title || "Akt"), order }));
+      if (!project.acts.length) project.acts = [{ id: uid(), title: "Erster Akt", order: 0 }];
+      const actIds = new Set(project.acts.map((act) => act.id));
+      project.scenes = (Array.isArray(raw.scenes) ? raw.scenes : []).filter((scene) => scene && scene.id).map((scene, order) => ({
+        id: String(scene.id),
+        actId: actIds.has(scene.actId) ? scene.actId : project.acts[0].id,
+        title: String(scene.title || "Szene"),
+        summary: String(scene.summary || ""),
+        status: STATUSES.some((item) => item[0] === scene.status) ? scene.status : "idee",
+        order
+      }));
+      project.characters = (Array.isArray(raw.characters) ? raw.characters : []).filter((person) => person && person.id).map((person) => ({
+        id: String(person.id), name: String(person.name || "Unbenannt"), epithet: String(person.epithet || ""),
+        role: ROLES.some((item) => item[0] === person.role) ? person.role : "neben",
+        age: String(person.age || ""), origin: String(person.origin || ""), appearance: String(person.appearance || ""),
+        voice: String(person.voice || ""), want: String(person.want || ""), need: String(person.need || ""),
+        fear: String(person.fear || ""), lie: String(person.lie || ""), arc: String(person.arc || ""),
+        notes: String(person.notes || ""), color: hex(person.color, "#8f3a2c"), portrait: safeImage(person.portrait),
+        relations: Array.isArray(person.relations) ? person.relations.filter((rel) => rel && rel.toId).map((rel) => ({ id: String(rel.id || uid()), toId: String(rel.toId), label: String(rel.label || "") })) : []
+      }));
+      project.lore = (Array.isArray(raw.lore) ? raw.lore : []).filter((entry) => entry && entry.id).map((entry) => ({
+        id: String(entry.id), title: String(entry.title || "Notiz"), kind: KINDS.some((item) => item[0] === entry.kind) ? entry.kind : "ort",
+        trait: String(entry.trait || ""), body: String(entry.body || "")
+      }));
+      const sceneIds = new Set(project.scenes.map((scene) => scene.id));
+      project.chapters = (Array.isArray(raw.chapters) ? raw.chapters : []).filter((chapter) => chapter && chapter.id).map((chapter, order) => ({
+        id: String(chapter.id), title: String(chapter.title || "Kapitel"), body: String(chapter.body || ""),
+        sceneId: sceneIds.has(chapter.sceneId) ? chapter.sceneId : null, order
+      }));
+      if (!project.chapters.length) project.chapters = [{ id: uid(), title: "Erstes Kapitel", body: "", sceneId: null, order: 0 }];
+      return project;
+    }
+    function sanitizeAtmosphere(raw) {
+      const base = { presetId: "candle", paper: "#f8ecd8", ink: "#2a1a12", accent: "#a34732", wash: "#1a120c", image: "studio/candle.jpg", dim: 46 };
+      if (!raw || typeof raw !== "object") return base;
+      return {
+        presetId: String(raw.presetId || "eigen"),
+        paper: hex(raw.paper, base.paper),
+        ink: hex(raw.ink, base.ink),
+        accent: hex(raw.accent, base.accent),
+        wash: hex(raw.wash, base.wash),
+        image: safeImage(raw.image),
+        dim: Math.min(75, Math.max(0, Math.round(Number(raw.dim) || 0)))
+      };
+    }
+    function sanitizeLettering(raw) {
+      const face = FACES.some((item) => item[0] === raw?.face) ? raw.face : "fraunces";
+      const size = Math.min(32, Math.max(16, Math.round(Number(raw?.size) || 19)));
+      return { face, size };
+    }
+    function applyLook() {
+      const look = state.atmosphere;
+      const face = FACES.find((item) => item[0] === state.lettering.face) || FACES[0];
+      const root = document.documentElement;
+      root.style.setProperty("--paper", look.paper);
+      root.style.setProperty("--ink", look.ink);
+      root.style.setProperty("--accent", look.accent);
+      root.style.setProperty("--wash", look.wash);
+      root.style.setProperty("--on-accent", inkOn(look.accent));
+      root.style.setProperty("--dim", String(look.dim / 100));
+      root.style.setProperty("--letter-font", face[2]);
+      root.style.setProperty("--letter-size", state.lettering.size + "px");
+      const room = document.getElementById("room");
+      const image = safeImage(look.image);
+      room.style.backgroundImage = image ? 'url("' + image.replace(/"/g, "") + '")' : "none";
+    }
+
+    function readImage(file, max, quality) {
+      return new Promise((resolve, reject) => {
+        if (!file || file.size > 8_000_000) { reject(new Error("size")); return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const scale = Math.min(1, max / Math.max(img.width, img.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          };
+          img.onerror = () => reject(new Error("read"));
+          img.src = reader.result;
+        };
+        reader.onerror = () => reject(new Error("read"));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function patch(scope, id, key, value) {
+      const project = active();
+      if (scope === "project") project[key] = value;
+      if (scope === "act") { const item = project.acts.find((act) => act.id === id); if (item) item[key] = value; }
+      if (scope === "scene") { const item = project.scenes.find((scene) => scene.id === id); if (item) item[key] = value; }
+      if (scope === "person") { const item = project.characters.find((person) => person.id === id); if (item) item[key] = value; }
+      if (scope === "lore") { const item = project.lore.find((entry) => entry.id === id); if (item) item[key] = value; }
+      if (scope === "chapter") {
+        const item = project.chapters.find((chapter) => chapter.id === id);
+        if (item) item[key] = key === "sceneId" && !value ? null : value;
+      }
+      touch();
+      const liveTitle = document.querySelector("[data-live-title]");
+      if (liveTitle && scope === "project" && key === "title") liveTitle.textContent = value.trim() || "Ohne Titel";
+      const liveWords = document.querySelector("[data-live-words]");
+      if (liveWords) liveWords.textContent = formatWords(projectWords(project));
+      const reading = document.querySelector("[data-live-reading]");
+      if (reading && scope === "chapter" && key === "body") reading.textContent = readingLabel(words(value));
+    }
+
+    function confirmDelete(key, run) {
+      if (ui.armed === key) { ui.armed = ""; run(); }
+      else { ui.armed = key; render(); }
+    }
+    function reindex(list) { byOrder(list).forEach((item, order) => { item.order = order; }); }
+    function nudge(list, id, dir) {
+      const sorted = byOrder(list);
+      const index = sorted.findIndex((item) => item.id === id);
+      const target = index + dir;
+      if (index < 0 || target < 0 || target >= sorted.length) return;
+      const [item] = sorted.splice(index, 1);
+      sorted.splice(target, 0, item);
+      sorted.forEach((entry, order) => { entry.order = order; });
+      touch();
+      render();
+    }
+    function placeScene(sceneId, actId, beforeId) {
+      const project = active();
+      const scene = project.scenes.find((item) => item.id === sceneId);
+      if (!scene || !project.acts.some((act) => act.id === actId)) return;
+      scene.actId = actId;
+      const column = project.scenes.filter((item) => item.actId === actId && item.id !== sceneId);
+      column.sort((a, b) => a.order - b.order);
+      const index = beforeId ? column.findIndex((item) => item.id === beforeId) : column.length;
+      column.splice(index < 0 ? column.length : index, 0, scene);
+      column.forEach((item, order) => { item.order = order; });
+      touch();
+      render();
+    }
+
+    function viewHome(project) {
+      const open = project.scenes.filter((scene) => scene.status !== "steht");
+      return '<div class="wrap"><p class="eyebrow">Werk</p><input class="title-input" aria-label="Titel des Werks" data-bind="project.title" value="' + esc(project.title) + '">' +
+        (project.demo ? '<p class="muted">Ein Beispiel zum Anfassen. Überschreibe es, oder lege unter Werke ein leeres Blatt an.</p>' : "") +
+        '<div class="grid-2" style="margin-top:1rem"><label><span class="label">Worum es geht</span><textarea class="field" rows="4" data-bind="project.logline">' + esc(project.logline) + '</textarea></label><label><span class="label">Gattung</span><input class="field" data-bind="project.genre" value="' + esc(project.genre) + '"></label></div>' +
+        '<div class="row" style="margin-top:1rem"><button class="wax" type="button" data-action="go" data-id="write">Weiter schreiben</button><button class="ghost" type="button" data-action="go" data-id="map">Zur Karte</button><span class="muted">' + esc(readingLabel(projectWords(project))) + '</span></div>' +
+        '<h2 style="margin-top:2rem">Offene Szenen</h2>' +
+        (open.length ? '<div class="row" style="margin-top:.7rem">' + open.map((scene) => '<button class="ghost" type="button" data-action="open-scene" data-id="' + esc(scene.id) + '">' + esc(scene.title) + '</button>').join("") + '</div>' : '<p class="muted">Nichts wartet. Alles, was auf der Karte steht, ist als stehend markiert, oder die Karte ist noch leer.</p>') +
+        '<div class="row" style="margin-top:1.5rem"><button class="ghost" type="button" data-action="export">Sicherung herunterladen</button><label class="ghost">Sicherung öffnen<input class="hide" type="file" accept="application/json" data-action="import"></label>' +
+        (ui.note ? '<span>' + esc(ui.note) + '</span>' : '') + '</div></div>';
+    }
+
+    function viewMap(project) {
+      const acts = byOrder(project.acts);
+      return '<div class="wrap"><p class="eyebrow">Karte</p><h1 style="font-size:2.4rem;margin-top:.3rem">Story-Map</h1><p class="muted">Akte in der Reihe, Szenen darunter. Ziehen ordnet sie neu. Auf dem Handy verschiebst du eine Szene über das Auswahlfeld.</p><div class="row" style="margin:.8rem 0"><button class="wax" type="button" data-action="add-act">Akt</button></div><div class="cols">' +
+        acts.map((act) => {
+          const scenes = byOrder(project.scenes.filter((scene) => scene.actId === act.id));
+          return '<section class="act" data-drop="' + esc(act.id) + '"><input class="field" aria-label="Akt" data-bind="act.title" data-id="' + esc(act.id) + '" value="' + esc(act.title) + '"><div class="row" style="margin-top:.4rem"><button class="ghost" type="button" data-action="add-scene" data-id="' + esc(act.id) + '">Szene</button><button class="ghost" type="button" data-action="nudge-act" data-id="' + esc(act.id) + '" data-dir="-1">←</button><button class="ghost" type="button" data-action="nudge-act" data-id="' + esc(act.id) + '" data-dir="1">→</button>' + deleteButton("act:" + act.id, "Akt löschen") + '</div>' +
+            scenes.map((scene) => '<article class="paper scene" style="padding:.7rem" data-drop="' + esc(act.id) + '" data-before="' + esc(scene.id) + '"><div class="row"><button class="ghost" type="button" draggable="true" data-scene="' + esc(scene.id) + '" aria-label="Szene ziehen">Ziehen</button><button class="chip" type="button" data-action="status" data-id="' + esc(scene.id) + '">' + esc(labelOf(STATUSES, scene.status)) + '</button></div><input class="field" style="margin-top:.4rem" aria-label="Szenentitel" data-bind="scene.title" data-id="' + esc(scene.id) + '" value="' + esc(scene.title) + '"><textarea class="field" style="margin-top:.4rem;min-height:4.5rem" aria-label="Szeneninhalt" data-bind="scene.summary" data-id="' + esc(scene.id) + '">' + esc(scene.summary) + '</textarea><label style="display:block;margin-top:.4rem"><span class="label">In den Akt</span><select class="field" data-action="move-scene" data-id="' + esc(scene.id) + '">' + acts.map((option) => '<option value="' + esc(option.id) + '"' + (option.id === scene.actId ? " selected" : "") + '>' + esc(option.title) + '</option>').join("") + '</select></label><div class="row" style="margin-top:.4rem"><button class="ghost" type="button" data-action="nudge-scene" data-id="' + esc(scene.id) + '" data-dir="-1">Nach oben</button><button class="ghost" type="button" data-action="nudge-scene" data-id="' + esc(scene.id) + '" data-dir="1">Nach unten</button>' + deleteButton("scene:" + scene.id, "Szene löschen") + '</div></article>').join("") +
+            '</section>';
+        }).join("") + '</div></div>';
+    }
+
+    function personFields(person) {
+      const fields = [["epithet", "Beiname"], ["age", "Alter"], ["origin", "Herkunft"], ["appearance", "Aussehen"], ["voice", "Stimme"], ["want", "Will"], ["need", "Braucht"], ["fear", "Fürchtet"], ["lie", "Lüge"], ["arc", "Bogen"], ["notes", "Notizen"]];
+      return fields.map(([key, label]) => {
+        const long = !["epithet", "age", "origin"].includes(key);
+        const control = long
+          ? '<textarea class="field" data-bind="person.' + key + '" data-id="' + esc(person.id) + '">' + esc(person[key]) + '</textarea>'
+          : '<input class="field" data-bind="person.' + key + '" data-id="' + esc(person.id) + '" value="' + esc(person[key]) + '">';
+        return '<label style="display:block;margin-top:.6rem"><span class="label">' + label + '</span>' + control + '</label>';
+      }).join("");
+    }
+
+    function viewPeople(project) {
+      const people = project.characters;
+      const person = people.find((item) => item.id === ui.person) || people[0];
+      if (person) ui.person = person.id;
+      const others = person ? people.filter((item) => item.id !== person.id) : [];
+      return '<div class="wrap"><p class="eyebrow">Figuren</p><h1 style="font-size:2.4rem;margin-top:.3rem">Figuren</h1><button class="wax" type="button" data-action="add-person" style="margin-top:.8rem">Figur</button>' +
+        (!person ? '<p class="muted">Noch niemand tritt auf.</p>' : '<div class="split" style="margin-top:1rem"><div class="row">' + people.map((item) => '<button class="chip" type="button" data-action="pick-person" data-id="' + esc(item.id) + '" aria-pressed="' + (item.id === person.id) + '">' + esc(item.name || "Unbenannt") + '</button>').join("") + '</div><article class="paper" style="padding:1rem"><div class="row" style="align-items:flex-start"><div class="portrait" style="background:' + esc(person.color) + '">' + (person.portrait ? '<img alt="" src="' + esc(person.portrait) + '">' : esc(monogram(person.name))) + '</div><div style="flex:1"><label class="ghost">Bild<input class="hide" type="file" accept="image/*" data-action="portrait" data-id="' + esc(person.id) + '"></label>' + (person.portrait ? '<button class="ghost" type="button" data-action="clear-portrait" data-id="' + esc(person.id) + '">Bild entfernen</button>' : '') + '<label style="display:block;margin-top:.5rem"><span class="label">Farbe</span><input class="swatch" type="color" data-bind="person.color" data-id="' + esc(person.id) + '" value="' + esc(person.color) + '"></label></div></div><label style="display:block;margin-top:.8rem"><span class="label">Name</span><input class="manuscript-title" data-bind="person.name" data-id="' + esc(person.id) + '" value="' + esc(person.name) + '"></label><label style="display:block;margin-top:.6rem"><span class="label">Rolle</span><select class="field" data-bind="person.role" data-id="' + esc(person.id) + '">' + ROLES.map((role) => '<option value="' + role[0] + '"' + (person.role === role[0] ? " selected" : "") + '>' + role[1] + '</option>').join("") + '</select></label>' + personFields(person) +
+        '<h2 style="margin-top:1.2rem">Beziehungen</h2>' + (person.relations.map((rel) => '<p class="row"><span>' + esc((people.find((item) => item.id === rel.toId) || {}).name || "Unbekannt") + ': ' + (rel.label || "verbunden") + '</span><button class="ghost" type="button" data-action="remove-rel" data-id="' + esc(person.id) + '" data-rel="' + esc(rel.id) + '">Lösen</button></p>').join("") || '<p class="soft">Noch keine Verbindung.</p>') +
+        (others.length ? '<div class="row"><select class="field" id="rel-to" style="max-width:14rem">' + others.map((item) => '<option value="' + esc(item.id) + '">' + esc(item.name || "Unbenannt") + '</option>').join("") + '</select><input class="field" id="rel-label" placeholder="wie sie verbunden sind" style="max-width:16rem"><button class="wax" type="button" data-action="add-rel" data-id="' + esc(person.id) + '">Verbinden</button></div>' : '') +
+        '<div style="margin-top:.8rem">' + deleteButton("person:" + person.id, "Figur löschen") + '</div></article></div>') + '</div>';
+    }
+
+    function viewWorld(project) {
+      const visible = project.lore.filter((entry) => ui.kind === "alle" || entry.kind === ui.kind);
+      const entry = visible.find((item) => item.id === ui.lore) || visible[0];
+      if (entry) ui.lore = entry.id;
+      return '<div class="wrap"><p class="eyebrow">Welt</p><h1 style="font-size:2.4rem;margin-top:.3rem">Hintergründe</h1><div class="row" style="margin-top:.8rem"><button class="chip" type="button" data-action="pane" data-id="welt" aria-pressed="' + (state.worldPane === "welt") + '">Weltstoff</button><button class="chip" type="button" data-action="pane" data-id="raum" aria-pressed="' + (state.worldPane === "raum") + '">Raum</button></div>' +
+        (state.worldPane === "raum" ? '<div class="paper" style="padding:1rem;margin-top:1rem;max-width:36rem">' + roomEditor(true) + '</div>' : '<div class="row" style="margin-top:.8rem"><button class="chip" type="button" data-action="kind" data-id="alle" aria-pressed="' + (ui.kind === "alle") + '">Alles</button>' + KINDS.map((kind) => '<button class="chip" type="button" data-action="kind" data-id="' + kind[0] + '" aria-pressed="' + (ui.kind === kind[0]) + '">' + kind[1] + '</button>').join("") + '</div><button class="wax" type="button" data-action="add-lore" style="margin-top:.8rem">Hintergrund anlegen</button>' +
+          (!entry ? '<p class="muted">Die Welt hat noch keine Notizen.</p>' : '<div class="split" style="margin-top:1rem"><div class="row">' + visible.map((item) => '<button class="chip" type="button" data-action="pick-lore" data-id="' + esc(item.id) + '" aria-pressed="' + (item.id === entry.id) + '">' + esc(item.title || "Notiz") + '</button>').join("") + '</div><article class="paper" style="padding:1rem"><label><span class="label">Titel</span><input class="field" data-bind="lore.title" data-id="' + esc(entry.id) + '" value="' + esc(entry.title) + '"></label><label style="display:block;margin-top:.6rem"><span class="label">Sorte</span><select class="field" data-bind="lore.kind" data-id="' + esc(entry.id) + '">' + KINDS.map((kind) => '<option value="' + kind[0] + '"' + (entry.kind === kind[0] ? " selected" : "") + '>' + kind[1] + '</option>').join("") + '</select></label><label style="display:block;margin-top:.6rem"><span class="label">Merkmal</span><input class="field" data-bind="lore.trait" data-id="' + esc(entry.id) + '" value="' + esc(entry.trait) + '"></label><label style="display:block;margin-top:.6rem"><span class="label">Notiz</span><textarea class="field" data-bind="lore.body" data-id="' + esc(entry.id) + '">' + esc(entry.body) + '</textarea></label><div style="margin-top:.8rem">' + deleteButton("lore:" + entry.id, "Hintergrund löschen") + '</div></article></div>')) + '</div>';
+    }
+
+    function typeControls() {
+      const face = state.lettering.face;
+      return '<div><p class="soft" style="margin:.2rem 0">Schriftart</p><div class="row">' + FACES.map((item) => '<button class="chip" type="button" data-action="face" data-id="' + item[0] + '" aria-pressed="' + (face === item[0]) + '" style="font-family:' + item[2] + '">' + item[1] + '</button>').join("") + '</div><label style="display:block;margin-top:.6rem"><span class="soft">Schriftgröße ' + state.lettering.size + '</span><input type="range" min="16" max="32" step="1" value="' + state.lettering.size + '" data-action="size" aria-label="Schriftgröße"></label></div>';
+    }
+
+    function roomEditor(preview) {
+      const look = state.atmosphere;
+      return '<p>Farbe, Licht und, wenn du willst, ein eigenes Bild hinter dem Schreibtisch.</p><div class="grid-2">' + PRESETS.map((preset) => '<button type="button" data-action="preset" data-id="' + preset[0] + '" style="text-align:left;border-radius:1rem;overflow:hidden;border:1px solid var(--line);padding:0;background:' + preset[5] + '"><span style="display:block;height:3.2rem;' + (preset[6] ? 'background:url(' + preset[6] + ') center/cover' : '') + '"></span><span style="display:block;padding:.45rem .7rem;background:' + preset[2] + ';color:' + preset[3] + '">' + preset[1] + '</span></button>').join("") + '</div>' +
+        [["paper", "Papier"], ["ink", "Tinte"], ["accent", "Akzent"], ["wash", "Raum"]].map(([key, label]) => '<label class="row" style="justify-content:space-between;margin-top:.4rem"><span>' + label + '</span><input class="swatch" type="color" data-bind="look.' + key + '" value="' + esc(look[key]) + '"></label>').join("") +
+        '<label style="display:block;margin-top:.6rem"><span class="soft">Schatten im Raum</span><input type="range" min="0" max="75" value="' + look.dim + '" data-action="dim" aria-label="Schatten im Raum"></label><div class="row"><label class="ghost">Eigenes Bild<input class="hide" type="file" accept="image/*" data-action="bg"></label>' + (look.image ? '<button class="ghost" type="button" data-action="clear-bg">Bild entfernen</button>' : '') + '</div>' +
+        (preview ? '<div style="margin-top:1rem;border-top:1px solid var(--line);padding-top:1rem"><h2>Schrift</h2><p class="muted">Gilt für Titel und Text im Manuskript.</p>' + typeControls() + '<p class="paper" style="padding:1rem;margin-top:.8rem;font-family:var(--letter-font);font-size:var(--letter-size);line-height:1.7">Die Laterne hing noch, als der Kai schon dunkel war.</p></div>' : '');
+    }
+
+    function viewWrite(project) {
+      const chapters = byOrder(project.chapters);
+      const chapter = chapters.find((item) => item.id === ui.chapter) || chapters[0];
+      if (!chapter) return '<div class="wrap"><h1>Manuskript</h1><button class="wax" type="button" data-action="add-chapter">Erstes Kapitel anlegen</button></div>';
+      ui.chapter = chapter.id;
+      const acts = byOrder(project.acts);
+      const focus = ui.focus;
+      return '<div class="wrap" style="' + (focus ? 'max-width:46rem' : '') + '">' + (focus ? '' : '<p class="eyebrow">Seiten</p><h1 style="font-size:2.4rem;margin:.3rem 0">Manuskript</h1><p class="muted">Schreib hier. Verknüpfe ein Kapitel mit einer Szene, wenn es soweit ist.</p>') +
+        '<div class="' + (focus ? '' : 'split write-split') + '" style="margin-top:1rem">' +
+        (focus ? '' : '<aside class="no-print"><button class="wax" type="button" data-action="add-chapter" style="width:100%">Kapitel</button><div style="margin-top:.5rem">' + chapters.map((item) => '<button class="' + (item.id === chapter.id ? 'paper' : 'ghost') + '" type="button" data-action="pick-chapter" data-id="' + esc(item.id) + '" style="width:100%;margin-top:.4rem;border-radius:1rem;text-align:left;padding:.6rem .8rem;display:block"><span style="display:block">' + esc(item.title || "Ohne Titel") + '</span><span class="soft">' + words(item.body) + '</span></button>').join("") + '</div></aside>') +
+        '<article class="paper" style="padding:1.1rem 1.2rem"><div class="no-print row" style="justify-content:space-between"><span class="soft" data-live-reading>' + esc(readingLabel(words(chapter.body))) + '</span><button class="ghost" type="button" data-action="focus">' + (focus ? 'Schreibtisch' : 'Fokus') + '</button></div><div class="no-print" style="margin:.7rem 0">' + typeControls() + '</div><input class="manuscript-title" aria-label="Kapiteltitel" data-bind="chapter.title" data-id="' + esc(chapter.id) + '" value="' + esc(chapter.title) + '"><textarea class="page-input" data-bind="chapter.body" data-id="' + esc(chapter.id) + '" placeholder="Hier beginnt die Seite.">' + esc(chapter.body) + '</textarea>' +
+        (focus ? '' : '<div class="no-print" style="margin-top:1rem;border-top:1px solid color-mix(in srgb, var(--ink) 12%, transparent);padding-top:.8rem"><label><span class="label">Szene auf der Karte</span><select class="field" data-bind="chapter.sceneId" data-id="' + esc(chapter.id) + '"><option value="">Keine Szene</option>' + acts.map((act) => { const scenes = byOrder(project.scenes.filter((scene) => scene.actId === act.id)); return scenes.length ? '<optgroup label="' + esc(act.title) + '">' + scenes.map((scene) => '<option value="' + esc(scene.id) + '"' + (chapter.sceneId === scene.id ? " selected" : "") + '>' + esc(scene.title) + '</option>').join("") + '</optgroup>' : ''; }).join("") + '</select></label><div class="row" style="margin-top:.6rem">' + (chapter.sceneId ? '<button class="ghost" type="button" data-action="open-scene" data-id="' + esc(chapter.sceneId) + '">Auf der Karte zeigen</button>' : '') + '<button class="ghost" type="button" data-action="nudge-chapter" data-id="' + esc(chapter.id) + '" data-dir="-1">Nach oben</button><button class="ghost" type="button" data-action="nudge-chapter" data-id="' + esc(chapter.id) + '" data-dir="1">Nach unten</button>' + deleteButton("chapter:" + chapter.id, "Kapitel löschen") + '</div></div>') +
+        '</article></div></div>';
+    }
+
+    function deleteButton(key, label) {
+      const armed = ui.armed === key;
+      return '<button class="ghost" type="button" data-action="del" data-id="' + esc(key) + '">' + (armed ? "Wirklich löschen" : esc(label)) + '</button>';
+    }
+
+    function shell() {
+      const project = active();
+      const calm = ui.focus && state.view === "write";
+      const count = formatWords(projectWords(project));
+      const menu = ui.menu ? '<div class="menu">' + state.projects.map((item) => '<button class="ghost" type="button" data-action="switch" data-id="' + esc(item.id) + '" style="margin-top:.25rem">' + esc(item.title.trim() || "Ohne Titel") + '</button>').join("") + '<button class="wax" type="button" data-action="blank" style="margin-top:.6rem">Leeres Werk</button><button class="ghost" type="button" data-action="demo" style="margin-top:.4rem">Beispiel öffnen</button>' + deleteButton("project:" + project.id, "Dieses Werk löschen") + '</div>' : '';
+      return (calm ? '<button class="wax no-print" type="button" data-action="focus" style="position:fixed;top:1rem;right:1rem;z-index:30">Fertig</button>' : '<header class="bar no-print"><div class="bar-row"><div class="grow"><p class="brand">Scriptorium</p><p class="sub" data-live-title>' + esc(project.title.trim() || "Ohne Titel") + '</p></div><span class="muted live-words" data-live-words>' + esc(count) + '</span><button class="icon" type="button" aria-label="Raum anpassen" data-action="toggle-room">Raum</button><div style="position:relative"><button class="ghost" type="button" data-action="toggle-menu">Werke</button>' + menu + '</div></div><nav class="tabs" aria-label="Bereiche">' + TABS.map((tab) => '<button class="tab ghost" type="button" data-action="go" data-id="' + tab[0] + '" aria-current="' + (state.view === tab[0] ? "page" : "false") + '">' + tab[1] + '</button>').join("") + '</nav></header>') +
+        (state.view === "home" ? viewHome(project) : state.view === "map" ? viewMap(project) : state.view === "people" ? viewPeople(project) : state.view === "world" ? viewWorld(project) : viewWrite(project)) +
+        (calm ? '' : '<nav class="dock no-print" aria-label="Bereiche">' + TABS.map((tab) => '<button type="button" data-action="go" data-id="' + tab[0] + '" aria-current="' + (state.view === tab[0] ? "page" : "false") + '">' + tab[2] + '</button>').join("") + '</nav><a class="impressum desk no-print" href="./impressum.html">Impressum</a>') +
+        (ui.room && !calm ? '<div class="drawer no-print"><button class="shade" type="button" aria-label="Raum schließen" data-action="toggle-room"></button><aside><div class="row" style="justify-content:space-between"><h2>Raum</h2><button class="ghost" type="button" data-action="toggle-room">Schließen</button></div>' + roomEditor(true) + '</aside></div>' : '');
+    }
+
+    function render() {
+      applyLook();
+      const focus = document.activeElement;
+      const key = focus && focus.dataset ? (focus.dataset.bind || "") + (focus.dataset.id || "") : "";
+      const start = focus && typeof focus.selectionStart === "number" ? focus.selectionStart : null;
+      document.getElementById("app").innerHTML = shell();
+      if (!key) return;
+      const next = [...document.querySelectorAll("[data-bind]")].find((el) => (el.dataset.bind || "") + (el.dataset.id || "") === key);
+      if (next) {
+        next.focus();
+        if (start !== null && next.setSelectionRange) {
+          try { next.setSelectionRange(start, start); } catch { /* color inputs */ }
+        }
+      }
+    }
+
+    function download() {
+      const project = active();
+      const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = slug(project.title) + ".json";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function removeBy(key) {
+      const project = active();
+      const [kind, id] = key.split(":");
+      if (kind === "project") {
+        state.projects = state.projects.filter((item) => item.id !== id);
+        if (!state.projects.length) { const fresh = blank(); state.projects = [fresh]; state.activeId = fresh.id; }
+        else if (state.activeId === id) state.activeId = state.projects[0].id;
+      }
+      if (kind === "act" && project.acts.length > 1) {
+        const fallback = project.acts.find((act) => act.id !== id);
+        project.scenes.forEach((scene) => { if (scene.actId === id) scene.actId = fallback.id; });
+        project.acts = project.acts.filter((act) => act.id !== id);
+        reindex(project.acts);
+      }
+      if (kind === "scene") {
+        project.scenes = project.scenes.filter((scene) => scene.id !== id);
+        project.chapters.forEach((chapter) => { if (chapter.sceneId === id) chapter.sceneId = null; });
+      }
+      if (kind === "person") {
+        project.characters = project.characters.filter((person) => person.id !== id);
+        project.characters.forEach((person) => { person.relations = person.relations.filter((rel) => rel.toId !== id); });
+        if (ui.person === id) ui.person = null;
+      }
+      if (kind === "lore") {
+        project.lore = project.lore.filter((entry) => entry.id !== id);
+        if (ui.lore === id) ui.lore = null;
+      }
+      if (kind === "chapter" && project.chapters.length > 1) {
+        project.chapters = project.chapters.filter((chapter) => chapter.id !== id);
+        reindex(project.chapters);
+        if (ui.chapter === id) ui.chapter = null;
+      }
+      touch();
+      render();
+    }
+
+    document.addEventListener("input", onField);
+    document.addEventListener("change", onField);
+    document.addEventListener("click", onClick);
+    document.addEventListener("dragstart", (event) => {
+      const handle = event.target.closest("[data-scene]");
+      if (!handle) return;
+      event.dataTransfer.setData("text/plain", handle.dataset.scene);
+      event.dataTransfer.effectAllowed = "move";
+    });
+    document.addEventListener("dragover", (event) => {
+      if (event.target.closest("[data-drop]")) event.preventDefault();
+    });
+    document.addEventListener("drop", (event) => {
+      const zone = event.target.closest("[data-drop]");
+      const sceneId = event.dataTransfer.getData("text/plain");
+      if (!zone || !sceneId) return;
+      event.preventDefault();
+      placeScene(sceneId, zone.dataset.drop, zone.dataset.before || null);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && ui.focus) { ui.focus = false; render(); }
+    });
+
+    function onField(event) {
+      const el = event.target;
+      if (el.dataset.action === "move-scene") { placeScene(el.dataset.id, el.value, null); return; }
+      if (el.dataset.action === "size") {
+        state.lettering.size = Math.min(32, Math.max(16, Number(el.value) || 19));
+        applyLook();
+        const label = el.previousElementSibling;
+        if (label) label.textContent = "Schriftgröße " + state.lettering.size;
+        save();
+        return;
+      }
+      if (el.dataset.action === "dim") {
+        state.atmosphere.dim = Math.min(75, Math.max(0, Number(el.value) || 0));
+        state.atmosphere.presetId = "eigen";
+        applyLook();
+        save();
+        return;
+      }
+      if (el.dataset.action === "import" && el.files && el.files[0]) {
+        const file = el.files[0];
+        el.value = "";
+        file.text().then((text) => {
+          const project = normalize(JSON.parse(text));
+          if (!project) { ui.note = "Diese Datei ist kein Scriptorium-Werk."; render(); return; }
+          state.projects.unshift(project);
+          state.activeId = project.id;
+          state.view = "home";
+          ui.note = "Werk geladen.";
+          save();
+          render();
+        }).catch(() => { ui.note = "Diese Datei ließ sich nicht lesen."; render(); });
+        return;
+      }
+      if ((el.dataset.action === "bg" || el.dataset.action === "portrait") && el.files && el.files[0]) {
+        const file = el.files[0];
+        const action = el.dataset.action;
+        const id = el.dataset.id;
+        el.value = "";
+        readImage(file, action === "bg" ? 1600 : 800, 0.72).then((image) => {
+          if (action === "bg") { state.atmosphere.image = image; state.atmosphere.presetId = "eigen"; }
+          else { const person = active().characters.find((item) => item.id === id); if (person) person.portrait = image; }
+          touch();
+          render();
+        }).catch(() => { ui.note = "Das Bild konnte nicht gelesen werden."; render(); });
+        return;
+      }
+      if (!el.dataset.bind) return;
+      const [scope, key] = el.dataset.bind.split(".");
+      if (scope === "look") {
+        state.atmosphere[key] = el.value;
+        state.atmosphere.presetId = "eigen";
+        applyLook();
+        save();
+        return;
+      }
+      patch(scope, el.dataset.id, key, el.value);
+      if (el.tagName === "SELECT") render();
+    }
+
+    function onClick(event) {
+      const button = event.target.closest("[data-action]");
+      if (!button || button.matches("input, textarea, select")) return;
+      const action = button.dataset.action;
+      const id = button.dataset.id;
+      const project = active();
+      if (action !== "toggle-menu" && action !== "del") ui.menu = false;
+      if (action !== "del") ui.armed = action === "del" ? ui.armed : "";
+      if (action === "toggle-menu") { ui.menu = !ui.menu; render(); return; }
+      if (action === "toggle-room") { ui.room = !ui.room; render(); return; }
+      if (action === "go") { state.view = id; ui.focus = false; save(); render(); return; }
+      if (action === "focus") { ui.focus = !ui.focus; render(); return; }
+      if (action === "blank" || action === "demo") {
+        const created = action === "demo" ? sample() : blank();
+        state.projects.unshift(created);
+        state.activeId = created.id;
+        state.view = "home";
+        ui.menu = false;
+        save();
+        render();
+        return;
+      }
+      if (action === "switch") { state.activeId = id; state.view = "home"; ui.menu = false; ui.chapter = null; ui.person = null; ui.lore = null; save(); render(); return; }
+      if (action === "export") { download(); return; }
+      if (action === "add-act") { project.acts.push({ id: uid(), title: "Neuer Akt", order: project.acts.length }); touch(); render(); return; }
+      if (action === "add-scene") { const scene = { id: uid(), actId: id, title: "Neue Szene", summary: "", status: "idee", order: 99 }; project.scenes.push(scene); reindex(project.scenes.filter((item) => item.actId === id)); touch(); render(); return; }
+      if (action === "add-person") { const person = { id: uid(), name: "Neue Figur", epithet: "", role: "neben", age: "", origin: "", appearance: "", voice: "", want: "", need: "", fear: "", lie: "", arc: "", notes: "", color: "#8f3a2c", portrait: "", relations: [] }; project.characters.push(person); ui.person = person.id; touch(); render(); return; }
+      if (action === "add-lore") { const entry = { id: uid(), title: "Neue Notiz", kind: ui.kind === "alle" ? "ort" : ui.kind, trait: "", body: "" }; project.lore.push(entry); ui.lore = entry.id; ui.kind = "alle"; touch(); render(); return; }
+      if (action === "add-chapter") { const chapter = { id: uid(), title: "Neues Kapitel", body: "", sceneId: null, order: project.chapters.length }; project.chapters.push(chapter); ui.chapter = chapter.id; touch(); render(); return; }
+      if (action === "pick-person") { ui.person = id; render(); return; }
+      if (action === "pick-lore") { ui.lore = id; render(); return; }
+      if (action === "pick-chapter") { ui.chapter = id; render(); return; }
+      if (action === "pane") { state.worldPane = id; save(); render(); return; }
+      if (action === "kind") { ui.kind = id; render(); return; }
+      if (action === "open-scene") { state.view = "map"; ui.focus = false; save(); render(); return; }
+      if (action === "status") {
+        const scene = project.scenes.find((item) => item.id === id);
+        if (scene) { const index = STATUSES.findIndex((item) => item[0] === scene.status); scene.status = STATUSES[(index + 1) % STATUSES.length][0]; touch(); render(); }
+        return;
+      }
+      if (action === "nudge-act") { nudge(project.acts, id, Number(button.dataset.dir)); return; }
+      if (action === "nudge-scene") { const scene = project.scenes.find((item) => item.id === id); if (scene) nudge(project.scenes.filter((item) => item.actId === scene.actId), id, Number(button.dataset.dir)); return; }
+      if (action === "nudge-chapter") { nudge(project.chapters, id, Number(button.dataset.dir)); return; }
+      if (action === "face") { state.lettering.face = id; save(); render(); return; }
+      if (action === "preset") {
+        const preset = PRESETS.find((item) => item[0] === id);
+        if (preset) state.atmosphere = { presetId: preset[0], paper: preset[2], ink: preset[3], accent: preset[4], wash: preset[5], image: preset[6], dim: preset[7] };
+        save();
+        render();
+        return;
+      }
+      if (action === "clear-bg") { state.atmosphere.image = ""; state.atmosphere.presetId = "eigen"; save(); render(); return; }
+      if (action === "clear-portrait") { const person = project.characters.find((item) => item.id === id); if (person) person.portrait = ""; touch(); render(); return; }
+      if (action === "add-rel") {
+        const person = project.characters.find((item) => item.id === id);
+        const to = document.getElementById("rel-to");
+        const label = document.getElementById("rel-label");
+        if (person && to && to.value) person.relations.push({ id: uid(), toId: to.value, label: label ? label.value.trim() : "" });
+        touch();
+        render();
+        return;
+      }
+      if (action === "remove-rel") {
+        const person = project.characters.find((item) => item.id === id);
+        if (person) person.relations = person.relations.filter((rel) => rel.id !== button.dataset.rel);
+        touch();
+        render();
+        return;
+      }
+      if (action === "del") { confirmDelete(id, () => removeBy(id)); return; }
+    }
+
+    render();
+  </script>
+</body>
+</html>
